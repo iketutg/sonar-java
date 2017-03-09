@@ -31,7 +31,7 @@ import org.sonar.plugins.java.api.tree.ClassTree;
 import org.sonar.plugins.java.api.tree.LiteralTree;
 
 @Rule(key = "S3750")
-public class S3750Check extends BaseTreeVisitor implements JavaFileScanner {
+public class SpringComponentWithWrongScopeCheck extends BaseTreeVisitor implements JavaFileScanner {
 
   private static final String SCOPE_ANNOTATION_FQN = "org.springframework.context.annotation.Scope";
   private JavaFileScannerContext context;
@@ -46,41 +46,39 @@ public class S3750Check extends BaseTreeVisitor implements JavaFileScanner {
   public void visitClass(ClassTree tree) {
     SymbolMetadata clazzMeta = tree.symbol().metadata();
 
-    if ((clazzMeta.isAnnotatedWith("org.springframework.stereotype.Controller")
-      || clazzMeta.isAnnotatedWith("org.springframework.stereotype.Service")
-      || clazzMeta.isAnnotatedWith("org.springframework.stereotype.Repository"))
-      && clazzMeta.isAnnotatedWith(SCOPE_ANNOTATION_FQN)) {
-
-      if (!isScopeSingleton(clazzMeta)) {
-        AnnotationTree scopeAnnotation = findScopeAnnotation(tree);
-        if (scopeAnnotation != null) {
-          context.reportIssue(this, scopeAnnotation, "Remove this \"@Scope\" annotation.");
-        }
-      }
+    if (isSpringComponent(clazzMeta)
+      && clazzMeta.isAnnotatedWith(SCOPE_ANNOTATION_FQN)
+      && !isScopeSingleton(clazzMeta)) {
+      checkScopeAnnotation(tree);
     }
   }
 
-  private boolean isScopeSingleton(SymbolMetadata clazzMeta) {
+  private static boolean isSpringComponent(SymbolMetadata clazzMeta) {
+    return clazzMeta.isAnnotatedWith("org.springframework.stereotype.Controller")
+      || clazzMeta.isAnnotatedWith("org.springframework.stereotype.Service")
+      || clazzMeta.isAnnotatedWith("org.springframework.stereotype.Repository");
+  }
+
+  private static boolean isScopeSingleton(SymbolMetadata clazzMeta) {
     List<AnnotationValue> values = clazzMeta.valuesForAnnotation(SCOPE_ANNOTATION_FQN);
     for (AnnotationValue annotationValue : values) {
       if ("value".equals(annotationValue.name()) || "scopeName".equals(annotationValue.name())) {
         String scopeValue = ((LiteralTree) annotationValue.value()).value();
         if (!"\"singleton\"".equals(scopeValue)) {
-          return Boolean.FALSE;
+          return false;
         }
       }
     }
-    return Boolean.TRUE;
+    return true;
   }
 
-  private AnnotationTree findScopeAnnotation(ClassTree tree) {
+  private void checkScopeAnnotation(ClassTree tree) {
     List<AnnotationTree> annotations = tree.modifiers().annotations();
     for (AnnotationTree annotationTree : annotations) {
       if (annotationTree.annotationType().symbolType().fullyQualifiedName().equals(SCOPE_ANNOTATION_FQN)) {
-        return annotationTree;
+        context.reportIssue(this, annotationTree, "Remove this \"@Scope\" annotation.");
       }
     }
-    return null;
   }
 
 }

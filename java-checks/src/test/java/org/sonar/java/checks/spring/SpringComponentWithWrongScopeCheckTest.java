@@ -22,11 +22,12 @@ package org.sonar.java.checks.spring;
 import org.junit.Test;
 import org.sonar.java.checks.verifier.JavaCheckVerifier;
 
-public class S3750CheckTest {
+public class SpringComponentWithWrongScopeCheckTest {
 
   @Test
   public void test() {
-    JavaCheckVerifier.verify("src/test/files/checks/spring/S3750Check.java", new S3750Check());
+    JavaCheckVerifier.verify("src/test/files/checks/spring/SpringComponentWithWrongScopeCheck.java", new SpringComponentWithWrongScopeCheck());
+    JavaCheckVerifier.verifyNoIssueWithoutSemantic("src/test/files/checks/spring/SpringComponentWithWrongScopeCheck.java", new SpringComponentWithWrongScopeCheck());
   }
 
 }
